@@ -22,7 +22,7 @@ def wait_for_cassandra():
     
     for _ in range(10):  # Try 10 times
         try:
-            cluster = Cluster([CASSANDRA_HOST])
+            cluster = Cluster([CASSANDRA_HOST], port=CASSANDRA_PORT)
             session = cluster.connect()
             logger.info("Cassandra is ready!")
             return cluster
@@ -41,8 +41,12 @@ def create_keyspace(session):
     """
     logger.info(f"Creating keyspace {CASSANDRA_KEYSPACE} if it doesn't exist...")
     
-    # TODO: Students should implement keyspace creation
-    # Hint: Consider replication strategy and factor for a distributed database
+    session.execute(
+        """
+            CREATE KEYSPACE IF NOT EXISTS %s
+            WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}
+        """ % CASSANDRA_KEYSPACE
+    )
     
     logger.info(f"Keyspace {CASSANDRA_KEYSPACE} is ready.")
 
@@ -53,12 +57,32 @@ def create_tables(session):
     This is where students will define the table schemas based on the requirements.
     """
     logger.info("Creating tables...")
-    
-    # TODO: Students should implement table creation
-    # Hint: Consider:
-    # - What tables are needed to implement the required APIs?
-    # - What should be the primary keys and clustering columns?
-    # - How will you handle pagination and time-based queries?
+
+    session.execute(
+        """
+            CREATE TABLE IF NOT EXISTS messages_by_conversation (
+                conversation_id UUID,
+                message_id TIMEUUID,
+                sender_id UUID,
+                receiver_id UUID,
+                content TEXT,
+                timestamp TIMESTAMP,
+                PRIMARY KEY ((conversation_id), message_id)
+            ) WITH CLUSTERING ORDER BY (message_id DESC);
+        """
+    )
+
+    session.execute(
+        """
+            CREATE TABLE IF NOT EXISTS conversations_by_user (
+                user_id UUID,
+                conversation_id TIMEUUID,
+                partner_id UUID,
+                last_message_timestamp TIMESTAMP,
+                PRIMARY KEY ((user_id), last_message_timestamp)
+            ) WITH CLUSTERING ORDER BY (last_message_timestamp DESC);
+        """
+    )
     
     logger.info("Tables created successfully.")
 
