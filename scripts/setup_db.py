@@ -63,8 +63,8 @@ def create_tables(session):
             CREATE TABLE IF NOT EXISTS messages_by_conversation (
                 conversation_id UUID,
                 message_id TIMEUUID,
-                sender_id UUID,
-                receiver_id UUID,
+                sender_id int,
+                receiver_id int,
                 content TEXT,
                 timestamp TIMESTAMP,
                 PRIMARY KEY ((conversation_id), message_id)
@@ -75,12 +75,12 @@ def create_tables(session):
     session.execute(
         """
             CREATE TABLE IF NOT EXISTS conversations_by_user (
-                user_id UUID,
-                conversation_id TIMEUUID,
-                partner_id UUID,
+                user_id int,
+                partner_id int,
+                conversation_id UUID,
                 last_message_timestamp TIMESTAMP,
-                PRIMARY KEY ((user_id), last_message_timestamp)
-            ) WITH CLUSTERING ORDER BY (last_message_timestamp DESC);
+                PRIMARY KEY ((user_id), partner_id, last_message_timestamp)
+            ) WITH CLUSTERING ORDER BY (partner_id ASC, last_message_timestamp DESC)
         """
     )
     

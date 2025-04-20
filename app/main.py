@@ -40,13 +40,13 @@ def get_conversation_controller():
     """Dependency for conversation controller."""
     return ConversationController()
 
-# Update the routes with the dependencies
-message_router.dependency_overrides[MessageController] = get_message_controller
-conversation_router.dependency_overrides[ConversationController] = get_conversation_controller
-
 # Include routers
 app.include_router(message_router)
 app.include_router(conversation_router)
+
+# Update the routes with the dependencies
+app.dependency_overrides[MessageController] = get_message_controller
+app.dependency_overrides[ConversationController] = get_conversation_controller
 
 @app.get("/")
 async def root():

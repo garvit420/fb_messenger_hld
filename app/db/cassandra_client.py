@@ -57,7 +57,7 @@ class CassandraClient:
             self.cluster.shutdown()
             logger.info("Cassandra connection closed")
     
-    def execute(self, query: str, params: dict = None) -> List[Dict[str, Any]]:
+    def execute(self, query: str, params: tuple | list | dict = None) -> List[Dict[str, Any]]:
         """
         Execute a CQL query.
         
@@ -72,14 +72,16 @@ class CassandraClient:
             self.connect()
         
         try:
+            logger.debug(f"Executing query: {query}")
+            logger.debug(f"With parameters: {params} (type: {type(params)})")
             statement = SimpleStatement(query)
-            result = self.session.execute(statement, params or {})
+            result = self.session.execute(statement, params)
             return list(result)
         except Exception as e:
             logger.error(f"Query execution failed: {str(e)}")
             raise
     
-    def execute_async(self, query: str, params: dict = None):
+    def execute_async(self, query: str, params: tuple | list | dict = None):
         """
         Execute a CQL query asynchronously.
         
@@ -95,7 +97,7 @@ class CassandraClient:
         
         try:
             statement = SimpleStatement(query)
-            return self.session.execute_async(statement, params or {})
+            return self.session.execute_async(statement, params)
         except Exception as e:
             logger.error(f"Async query execution failed: {str(e)}")
             raise
