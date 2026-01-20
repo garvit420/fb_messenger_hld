@@ -1,4 +1,5 @@
 """Authentication controller for user registration and login."""
+
 from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,16 +17,14 @@ class AuthController:
         existing_email = db.query(User).filter(User.email == user_data.email).first()
         if existing_email:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
             )
 
         # Check if username already exists
         existing_username = db.query(User).filter(User.username == user_data.username).first()
         if existing_username:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already taken"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Username already taken"
             )
 
         # Create new user
@@ -36,7 +35,7 @@ class AuthController:
             password_hash=hashed_password,
             display_name=user_data.display_name or user_data.username,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         db.add(new_user)

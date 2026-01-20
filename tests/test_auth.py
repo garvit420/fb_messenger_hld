@@ -1,5 +1,5 @@
 """Tests for authentication endpoints."""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -14,8 +14,8 @@ class TestRegistration:
                 "email": "newuser@example.com",
                 "username": "newuser",
                 "password": "password123",
-                "display_name": "New User"
-            }
+                "display_name": "New User",
+            },
         )
         assert response.status_code == 201
         data = response.json()
@@ -33,8 +33,8 @@ class TestRegistration:
             json={
                 "email": "testuser@example.com",  # Same as test_user
                 "username": "differentuser",
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 400
         assert "Email already registered" in response.json()["detail"]
@@ -46,8 +46,8 @@ class TestRegistration:
             json={
                 "email": "different@example.com",
                 "username": "testuser",  # Same as test_user
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 400
         assert "Username already taken" in response.json()["detail"]
@@ -56,11 +56,7 @@ class TestRegistration:
         """Test registration with invalid email fails."""
         response = client.post(
             "/api/auth/register",
-            json={
-                "email": "invalid-email",
-                "username": "validuser",
-                "password": "password123"
-            }
+            json={"email": "invalid-email", "username": "validuser", "password": "password123"},
         )
         assert response.status_code == 422
 
@@ -68,11 +64,7 @@ class TestRegistration:
         """Test registration with short password fails."""
         response = client.post(
             "/api/auth/register",
-            json={
-                "email": "valid@example.com",
-                "username": "validuser",
-                "password": "short"
-            }
+            json={"email": "valid@example.com", "username": "validuser", "password": "short"},
         )
         assert response.status_code == 422
 
@@ -83,8 +75,8 @@ class TestRegistration:
             json={
                 "email": "valid@example.com",
                 "username": "ab",  # Less than 3 chars
-                "password": "password123"
-            }
+                "password": "password123",
+            },
         )
         assert response.status_code == 422
 
@@ -95,11 +87,7 @@ class TestLogin:
     def test_login_success(self, client: TestClient, test_user):
         """Test successful login."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "testuser",
-                "password": "testpassword123"
-            }
+            "/api/auth/login", data={"username": "testuser", "password": "testpassword123"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -109,11 +97,7 @@ class TestLogin:
     def test_login_wrong_password(self, client: TestClient, test_user):
         """Test login with wrong password fails."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "testuser",
-                "password": "wrongpassword"
-            }
+            "/api/auth/login", data={"username": "testuser", "password": "wrongpassword"}
         )
         assert response.status_code == 401
         assert "Invalid username or password" in response.json()["detail"]
@@ -121,11 +105,7 @@ class TestLogin:
     def test_login_nonexistent_user(self, client: TestClient):
         """Test login with nonexistent user fails."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "nonexistent",
-                "password": "password123"
-            }
+            "/api/auth/login", data={"username": "nonexistent", "password": "password123"}
         )
         assert response.status_code == 401
         assert "Invalid username or password" in response.json()["detail"]
@@ -133,11 +113,7 @@ class TestLogin:
     def test_login_updates_online_status(self, client: TestClient, db_session, test_user):
         """Test that login updates user's online status."""
         response = client.post(
-            "/api/auth/login",
-            data={
-                "username": "testuser",
-                "password": "testpassword123"
-            }
+            "/api/auth/login", data={"username": "testuser", "password": "testpassword123"}
         )
         assert response.status_code == 200
 

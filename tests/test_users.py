@@ -1,5 +1,5 @@
 """Tests for user profile endpoints."""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -23,10 +23,7 @@ class TestGetCurrentUser:
 
     def test_get_current_user_invalid_token(self, client: TestClient):
         """Test getting current user with invalid token fails."""
-        response = client.get(
-            "/api/users/me",
-            headers={"Authorization": "Bearer invalid_token"}
-        )
+        response = client.get("/api/users/me", headers={"Authorization": "Bearer invalid_token"})
         assert response.status_code == 401
 
 
@@ -36,9 +33,7 @@ class TestUpdateCurrentUser:
     def test_update_display_name(self, client: TestClient, auth_headers, test_user):
         """Test updating display name."""
         response = client.put(
-            "/api/users/me",
-            headers=auth_headers,
-            json={"display_name": "Updated Name"}
+            "/api/users/me", headers=auth_headers, json={"display_name": "Updated Name"}
         )
         assert response.status_code == 200
         data = response.json()
@@ -49,7 +44,7 @@ class TestUpdateCurrentUser:
         response = client.put(
             "/api/users/me",
             headers=auth_headers,
-            json={"avatar_url": "https://example.com/avatar.png"}
+            json={"avatar_url": "https://example.com/avatar.png"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -60,10 +55,7 @@ class TestUpdateCurrentUser:
         response = client.put(
             "/api/users/me",
             headers=auth_headers,
-            json={
-                "display_name": "New Name",
-                "avatar_url": "https://example.com/new-avatar.png"
-            }
+            json={"display_name": "New Name", "avatar_url": "https://example.com/new-avatar.png"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -72,10 +64,7 @@ class TestUpdateCurrentUser:
 
     def test_update_unauthorized(self, client: TestClient):
         """Test updating profile without auth fails."""
-        response = client.put(
-            "/api/users/me",
-            json={"display_name": "Hacker"}
-        )
+        response = client.put("/api/users/me", json={"display_name": "Hacker"})
         assert response.status_code == 401
 
 
@@ -85,9 +74,7 @@ class TestUpdateUserStatus:
     def test_set_online(self, client: TestClient, auth_headers, test_user):
         """Test setting user as online."""
         response = client.put(
-            "/api/users/me/status",
-            headers=auth_headers,
-            json={"is_online": True}
+            "/api/users/me/status", headers=auth_headers, json={"is_online": True}
         )
         assert response.status_code == 200
         data = response.json()
@@ -97,9 +84,7 @@ class TestUpdateUserStatus:
     def test_set_offline(self, client: TestClient, auth_headers, test_user):
         """Test setting user as offline."""
         response = client.put(
-            "/api/users/me/status",
-            headers=auth_headers,
-            json={"is_online": False}
+            "/api/users/me/status", headers=auth_headers, json={"is_online": False}
         )
         assert response.status_code == 200
         data = response.json()
@@ -107,24 +92,16 @@ class TestUpdateUserStatus:
 
     def test_update_status_unauthorized(self, client: TestClient):
         """Test updating status without auth fails."""
-        response = client.put(
-            "/api/users/me/status",
-            json={"is_online": True}
-        )
+        response = client.put("/api/users/me/status", json={"is_online": True})
         assert response.status_code == 401
 
 
 class TestGetUserById:
     """Tests for getting user by ID."""
 
-    def test_get_user_by_id_success(
-        self, client: TestClient, auth_headers, test_user, test_user2
-    ):
+    def test_get_user_by_id_success(self, client: TestClient, auth_headers, test_user, test_user2):
         """Test getting another user by ID."""
-        response = client.get(
-            f"/api/users/{test_user2.id}",
-            headers=auth_headers
-        )
+        response = client.get(f"/api/users/{test_user2.id}", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == test_user2.id

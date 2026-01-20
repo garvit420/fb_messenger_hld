@@ -1,4 +1,5 @@
 """Test fixtures for the messaging application."""
+
 import pytest
 from typing import Generator
 from fastapi.testclient import TestClient
@@ -16,9 +17,7 @@ TEST_DATABASE_URL = "sqlite:///:memory:"
 
 # Create test engine
 test_engine = create_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
+    TEST_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
 )
 
 # Create test session factory
@@ -62,7 +61,7 @@ def test_user(db_session: Session) -> User:
         email="testuser@example.com",
         username="testuser",
         password_hash=get_password_hash("testpassword123"),
-        display_name="Test User"
+        display_name="Test User",
     )
     db_session.add(user)
     db_session.commit()
@@ -77,7 +76,7 @@ def test_user2(db_session: Session) -> User:
         email="testuser2@example.com",
         username="testuser2",
         password_hash=get_password_hash("testpassword123"),
-        display_name="Test User 2"
+        display_name="Test User 2",
     )
     db_session.add(user)
     db_session.commit()
@@ -116,14 +115,8 @@ def test_conversation(db_session: Session, test_user: User, test_user2: User) ->
     db_session.add(conversation)
     db_session.flush()
 
-    participant1 = ConversationParticipant(
-        conversation_id=conversation.id,
-        user_id=test_user.id
-    )
-    participant2 = ConversationParticipant(
-        conversation_id=conversation.id,
-        user_id=test_user2.id
-    )
+    participant1 = ConversationParticipant(conversation_id=conversation.id, user_id=test_user.id)
+    participant2 = ConversationParticipant(conversation_id=conversation.id, user_id=test_user2.id)
     db_session.add(participant1)
     db_session.add(participant2)
     db_session.commit()
@@ -133,14 +126,12 @@ def test_conversation(db_session: Session, test_user: User, test_user2: User) ->
 
 
 @pytest.fixture
-def test_message(
-    db_session: Session, test_conversation: Conversation, test_user: User
-) -> Message:
+def test_message(db_session: Session, test_conversation: Conversation, test_user: User) -> Message:
     """Create a test message."""
     message = Message(
         conversation_id=test_conversation.id,
         sender_id=test_user.id,
-        content="Hello, this is a test message!"
+        content="Hello, this is a test message!",
     )
     db_session.add(message)
     db_session.commit()

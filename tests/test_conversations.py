@@ -1,5 +1,5 @@
 """Tests for conversation endpoints."""
-import pytest
+
 from fastapi.testclient import TestClient
 
 
@@ -20,9 +20,7 @@ class TestGetUserConversations:
         assert "participants" in conv
         assert len(conv["participants"]) == 2
 
-    def test_get_conversations_empty(
-        self, client: TestClient, auth_headers, test_user
-    ):
+    def test_get_conversations_empty(self, client: TestClient, auth_headers, test_user):
         """Test getting conversations when user has none."""
         response = client.get("/api/conversations/", headers=auth_headers)
         assert response.status_code == 200
@@ -55,7 +53,7 @@ class TestGetUserConversations:
                 email=f"user{i}@example.com",
                 username=f"user{i}",
                 password_hash=get_password_hash("password"),
-                display_name=f"User {i}"
+                display_name=f"User {i}",
             )
             db_session.add(other_user)
             db_session.flush()
@@ -64,24 +62,15 @@ class TestGetUserConversations:
             db_session.add(conv)
             db_session.flush()
 
-            p1 = ConversationParticipant(
-                conversation_id=conv.id,
-                user_id=test_user.id
-            )
-            p2 = ConversationParticipant(
-                conversation_id=conv.id,
-                user_id=other_user.id
-            )
+            p1 = ConversationParticipant(conversation_id=conv.id, user_id=test_user.id)
+            p2 = ConversationParticipant(conversation_id=conv.id, user_id=other_user.id)
             db_session.add(p1)
             db_session.add(p2)
 
         db_session.commit()
 
         # Get first page
-        response = client.get(
-            "/api/conversations/?page=1&limit=10",
-            headers=auth_headers
-        )
+        response = client.get("/api/conversations/?page=1&limit=10", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 15
@@ -89,10 +78,7 @@ class TestGetUserConversations:
         assert data["page"] == 1
 
         # Get second page
-        response = client.get(
-            "/api/conversations/?page=2&limit=10",
-            headers=auth_headers
-        )
+        response = client.get("/api/conversations/?page=2&limit=10", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data["data"]) == 5
@@ -111,10 +97,7 @@ class TestGetConversation:
         self, client: TestClient, auth_headers, test_conversation, test_message
     ):
         """Test getting a specific conversation."""
-        response = client.get(
-            f"/api/conversations/{test_conversation.id}",
-            headers=auth_headers
-        )
+        response = client.get(f"/api/conversations/{test_conversation.id}", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == test_conversation.id
@@ -126,10 +109,7 @@ class TestGetConversation:
         self, client: TestClient, auth_headers, test_conversation, test_user, test_user2
     ):
         """Test that conversation includes participant details."""
-        response = client.get(
-            f"/api/conversations/{test_conversation.id}",
-            headers=auth_headers
-        )
+        response = client.get(f"/api/conversations/{test_conversation.id}", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
 
@@ -138,23 +118,17 @@ class TestGetConversation:
         assert test_user.username in usernames
         assert test_user2.username in usernames
 
-    def test_get_conversation_not_participant(
-        self, client: TestClient, auth_headers, db_session
-    ):
+    def test_get_conversation_not_participant(self, client: TestClient, auth_headers, db_session):
         """Test getting conversation when not a participant fails."""
         from app.models.sqlite_models import Conversation, ConversationParticipant, User
         from app.core.security import get_password_hash
 
         # Create two other users
         user_a = User(
-            email="usera@example.com",
-            username="usera",
-            password_hash=get_password_hash("password")
+            email="usera@example.com", username="usera", password_hash=get_password_hash("password")
         )
         user_b = User(
-            email="userb@example.com",
-            username="userb",
-            password_hash=get_password_hash("password")
+            email="userb@example.com", username="userb", password_hash=get_password_hash("password")
         )
         db_session.add(user_a)
         db_session.add(user_b)
@@ -171,24 +145,16 @@ class TestGetConversation:
         db_session.add(p2)
         db_session.commit()
 
-        response = client.get(
-            f"/api/conversations/{conv.id}",
-            headers=auth_headers
-        )
+        response = client.get(f"/api/conversations/{conv.id}", headers=auth_headers)
         assert response.status_code == 403
         assert "not a participant" in response.json()["detail"]
 
     def test_get_conversation_not_found(self, client: TestClient, auth_headers):
         """Test getting nonexistent conversation."""
-        response = client.get(
-            "/api/conversations/nonexistent-id",
-            headers=auth_headers
-        )
+        response = client.get("/api/conversations/nonexistent-id", headers=auth_headers)
         assert response.status_code == 403  # First check is participant check
 
-    def test_get_conversation_unauthorized(
-        self, client: TestClient, test_conversation
-    ):
+    def test_get_conversation_unauthorized(self, client: TestClient, test_conversation):
         """Test getting conversation without auth fails."""
         response = client.get(f"/api/conversations/{test_conversation.id}")
         assert response.status_code == 401

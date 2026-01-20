@@ -1,4 +1,5 @@
 """FastAPI application entry point with SQLite backend."""
+
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -35,7 +36,7 @@ app = FastAPI(
     title="FB Messenger API",
     description="Backend API for FB Messenger implementation with SQLite and JWT authentication",
     version="2.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -68,4 +69,5 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

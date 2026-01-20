@@ -1,10 +1,12 @@
 """Security utilities for JWT tokens and password hashing."""
+
 import os
 import hashlib
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
@@ -18,10 +20,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         salt, stored_hash = hashed_password.split("$")
         computed_hash = hashlib.pbkdf2_hmac(
-            "sha256",
-            plain_password.encode(),
-            salt.encode(),
-            100000
+            "sha256", plain_password.encode(), salt.encode(), 100000
         ).hex()
         return secrets.compare_digest(computed_hash, stored_hash)
     except (ValueError, AttributeError):
@@ -31,12 +30,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     """Hash a password using PBKDF2."""
     salt = secrets.token_hex(16)
-    hash_value = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode(),
-        salt.encode(),
-        100000
-    ).hex()
+    hash_value = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 100000).hex()
     return f"{salt}${hash_value}"
 
 
@@ -57,5 +51,5 @@ def decode_access_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
-    except JWTError:
+    except PyJWTError:
         return None

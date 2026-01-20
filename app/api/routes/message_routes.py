@@ -1,4 +1,5 @@
 """Message API routes with authentication."""
+
 from fastapi import APIRouter, Depends, Query, Path, Body, status
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from app.schemas.message import (
     MessageCreate,
     MessageResponse,
     MessageStatusUpdate,
-    PaginatedMessageResponse
+    PaginatedMessageResponse,
 )
 
 router = APIRouter(prefix="/api/messages", tags=["Messages"])
@@ -26,7 +27,7 @@ async def send_message(
     message: MessageCreate = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: MessageController = Depends(get_message_controller)
+    controller: MessageController = Depends(get_message_controller),
 ) -> MessageResponse:
     """Send a message from the authenticated user."""
     return await controller.send_message(db, current_user, message)
@@ -39,7 +40,7 @@ async def get_conversation_messages(
     limit: int = Query(20, description="Number of messages per page"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: MessageController = Depends(get_message_controller)
+    controller: MessageController = Depends(get_message_controller),
 ) -> PaginatedMessageResponse:
     """Get all messages in a conversation with pagination."""
     return await controller.get_conversation_messages(
@@ -55,7 +56,7 @@ async def get_messages_before_timestamp(
     limit: int = Query(20, description="Number of messages per page"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: MessageController = Depends(get_message_controller)
+    controller: MessageController = Depends(get_message_controller),
 ) -> PaginatedMessageResponse:
     """Get messages in a conversation before a specific timestamp."""
     return await controller.get_messages_before_timestamp(
@@ -68,7 +69,7 @@ async def delete_message(
     message_id: str = Path(..., description="ID of the message to delete"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: MessageController = Depends(get_message_controller)
+    controller: MessageController = Depends(get_message_controller),
 ) -> MessageResponse:
     """Soft delete a message (only sender can delete)."""
     return await controller.delete_message(db, current_user, message_id)
@@ -80,7 +81,7 @@ async def update_message_status(
     status_data: MessageStatusUpdate = Body(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: MessageController = Depends(get_message_controller)
+    controller: MessageController = Depends(get_message_controller),
 ) -> MessageResponse:
     """Update message status (delivered/read)."""
     return await controller.update_message_status(db, current_user, message_id, status_data)
@@ -91,7 +92,7 @@ async def mark_conversation_as_read(
     conversation_id: str = Path(..., description="ID of the conversation"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: MessageController = Depends(get_message_controller)
+    controller: MessageController = Depends(get_message_controller),
 ):
     """Mark all messages in a conversation as read."""
     return await controller.mark_conversation_as_read(db, current_user, conversation_id)

@@ -1,9 +1,16 @@
 """SQLAlchemy ORM models for the messaging application."""
+
 import uuid
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Text, Boolean, DateTime,
-    ForeignKey, UniqueConstraint
+    Column,
+    Integer,
+    String,
+    Text,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from app.db.sqlite_client import Base
@@ -16,6 +23,7 @@ def generate_uuid() -> str:
 
 class User(Base):
     """User model for authentication and profile management."""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -30,12 +38,15 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    sent_messages = relationship("Message", back_populates="sender", foreign_keys="Message.sender_id")
+    sent_messages = relationship(
+        "Message", back_populates="sender", foreign_keys="Message.sender_id"
+    )
     participations = relationship("ConversationParticipant", back_populates="user")
 
 
 class Conversation(Base):
     """Conversation model for grouping messages."""
+
     __tablename__ = "conversations"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
@@ -44,11 +55,14 @@ class Conversation(Base):
 
     # Relationships
     participants = relationship("ConversationParticipant", back_populates="conversation")
-    messages = relationship("Message", back_populates="conversation", order_by="desc(Message.created_at)")
+    messages = relationship(
+        "Message", back_populates="conversation", order_by="desc(Message.created_at)"
+    )
 
 
 class ConversationParticipant(Base):
     """Junction table for conversation participants (supports group chats)."""
+
     __tablename__ = "conversation_participants"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -57,9 +71,7 @@ class ConversationParticipant(Base):
     joined_at = Column(DateTime, default=datetime.utcnow)
 
     # Unique constraint to prevent duplicate participants
-    __table_args__ = (
-        UniqueConstraint("conversation_id", "user_id", name="uq_conversation_user"),
-    )
+    __table_args__ = (UniqueConstraint("conversation_id", "user_id", name="uq_conversation_user"),)
 
     # Relationships
     conversation = relationship("Conversation", back_populates="participants")
@@ -68,6 +80,7 @@ class ConversationParticipant(Base):
 
 class Message(Base):
     """Message model for storing chat messages."""
+
     __tablename__ = "messages"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)

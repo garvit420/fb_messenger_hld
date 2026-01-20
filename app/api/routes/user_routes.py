@@ -1,4 +1,5 @@
 """User profile API routes."""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.sqlite_client import get_db
@@ -18,7 +19,7 @@ def get_user_controller() -> UserController:
 @router.get("/me", response_model=UserProfileResponse)
 async def get_current_user_profile(
     current_user: User = Depends(get_current_user),
-    controller: UserController = Depends(get_user_controller)
+    controller: UserController = Depends(get_user_controller),
 ):
     """Get the current authenticated user's profile."""
     return await controller.get_current_user_profile(current_user)
@@ -29,7 +30,7 @@ async def update_current_user_profile(
     update_data: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: UserController = Depends(get_user_controller)
+    controller: UserController = Depends(get_user_controller),
 ):
     """Update the current user's profile (display name, avatar)."""
     return await controller.update_current_user_profile(db, current_user, update_data)
@@ -40,7 +41,7 @@ async def update_user_status(
     status_data: UserStatusUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: UserController = Depends(get_user_controller)
+    controller: UserController = Depends(get_user_controller),
 ):
     """Update the current user's online status."""
     return await controller.update_user_status(db, current_user, status_data)
@@ -51,7 +52,7 @@ async def get_user_by_id(
     user_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    controller: UserController = Depends(get_user_controller)
+    controller: UserController = Depends(get_user_controller),
 ):
     """Get a user by their ID."""
     return await controller.get_user_by_id(db, user_id)
