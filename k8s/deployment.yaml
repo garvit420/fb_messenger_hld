@@ -1,0 +1,149 @@
+# =============================================================================
+# Kubernetes Deployment for FB Messenger Backend
+# =============================================================================
+# This manifest defines HOW the application runs in Kubernetes:
+# - Number of replicas (instances)
+# - Resource limits and requests
+# - Health checks (liveness & readiness probes)
+# - Environment configuration
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fb-messenger-backend
+  labels:
+    app: fb-messenger-backend
+    version: v1
+spec:
+  # ---------------------------------------------------------------------------
+  # REPLICAS: Number of pod instances to run
+  # WHY: 2 replicas provides high availability - if one pod fails,
+  # the other continues serving traffic while Kubernetes replaces it
+  # ---------------------------------------------------------------------------
+  replicas: 2
+
+  # ---------------------------------------------------------------------------
+  # SELECTOR: How Kubernetes identifies pods belonging to this deployment
+  # ---------------------------------------------------------------------------
+  selector:
+    matchLabels:
+      app: fb-messenger-backend
+
+  # ---------------------------------------------------------------------------
+  # STRATEGY: How to handle updates (rolling update vs recreate)
+  # WHY: Rolling update ensures zero-downtime deployments by gradually
+  # replacing old pods with new ones
+  # ---------------------------------------------------------------------------
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Allow 1 extra pod during update
+      maxUnavailable: 0  # Never have less than desired replicas
+
+  template:
+    metadata:
+      labels:
+        app: fb-messenger-backend
+        version: v1
+    spec:
+      # -----------------------------------------------------------------------
+      # SECURITY CONTEXT: Pod-level security settings
+      # WHY: Enforces security best practices at the Kubernetes level
+      # -----------------------------------------------------------------------
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: fb-messenger-backend
+          # Image will be overwritten by CI/CD with actual tag
+          image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+          imagePullPolicy: Always
+
+          # -------------------------------------------------------------------
+          # PORTS: Container port configuration
+          # -------------------------------------------------------------------
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          # -------------------------------------------------------------------
+          # RESOURCE LIMITS & REQUESTS
+          # WHY:
+          # - Requests: Minimum resources guaranteed to the pod (used for scheduling)
+          # - Limits: Maximum resources the pod can use (prevents resource hogging)
+          # Proper limits prevent noisy neighbor problems and ensure fair resource sharing
+          # -------------------------------------------------------------------
+          resources:
+            requests:
+              cpu: "100m"      # 0.1 CPU cores
+              memory: "128Mi"  # 128 MB RAM
+            limits:
+              cpu: "500m"      # 0.5 CPU cores max
+              memory: "512Mi"  # 512 MB RAM max
+
+          # -------------------------------------------------------------------
+          # LIVENESS PROBE: Is the container still running?
+          # WHY: If this fails, Kubernetes restarts the container
+          # Catches situations where the app is running but deadlocked/frozen
+          # -------------------------------------------------------------------
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10   # Wait 10s before first check
+            periodSeconds: 30         # Check every 30 seconds
+            timeoutSeconds: 5         # Timeout after 5 seconds
+            failureThreshold: 3       # Restart after 3 consecutive failures
+
+          # -------------------------------------------------------------------
+          # READINESS PROBE: Is the container ready to receive traffic?
+          # WHY: If this fails, Kubernetes removes pod from service endpoints
+          # Prevents sending traffic to pods that aren't ready (e.g., still starting)
+          # -------------------------------------------------------------------
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5    # Start checking after 5 seconds
+            periodSeconds: 10         # Check every 10 seconds
+            timeoutSeconds: 3         # Timeout after 3 seconds
+            failureThreshold: 3       # Remove from service after 3 failures
+
+          # -------------------------------------------------------------------
+          # ENVIRONMENT VARIABLES
+          # WHY: Configure application behavior without changing code
+          # -------------------------------------------------------------------
+          env:
+            - name: ENVIRONMENT
+              value: "production"
+            - name: LOG_LEVEL
+              value: "INFO"
+            # Database configuration would go here in a real deployment
+            # Using ConfigMaps and Secrets for sensitive data
+
+          # -------------------------------------------------------------------
+          # CONTAINER SECURITY CONTEXT
+          # WHY: Additional security hardening at container level
+          # -------------------------------------------------------------------
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # Set to true if app doesn't write to disk
+            capabilities:
+              drop:
+                - ALL
+
+      # -----------------------------------------------------------------------
+      # RESTART POLICY: What to do when container exits
+      # -----------------------------------------------------------------------
+      restartPolicy: Always
+
+      # -----------------------------------------------------------------------
+      # TERMINATION GRACE PERIOD: Time to gracefully shutdown
+      # WHY: Allows app to finish processing requests before termination
+      # -----------------------------------------------------------------------
+      terminationGracePeriodSeconds: 30

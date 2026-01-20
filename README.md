@@ -1,5 +1,8 @@
 # FB Messenger Backend Implementation with Cassandra
 
+[![CI Pipeline](https://github.com/YOUR_USERNAME/fb-messenger-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/fb-messenger-backend/actions/workflows/ci.yml)
+[![CD Pipeline](https://github.com/YOUR_USERNAME/fb-messenger-backend/actions/workflows/cd.yml/badge.svg)](https://github.com/YOUR_USERNAME/fb-messenger-backend/actions/workflows/cd.yml)
+
 This repository contains the stub code for the Distributed Systems course assignment to implement a Facebook Messenger backend using Apache Cassandra as the distributed database.
 
 ## Architecture
@@ -128,4 +131,144 @@ You need to implement:
 - Code quality and organization
 - Proper implementation of pagination
 - Performance considerations for distributed systems
-- Adherence to Cassandra data modeling best practices 
+- Adherence to Cassandra data modeling best practices
+
+---
+
+## CI/CD Pipeline
+
+This project includes a production-grade CI/CD pipeline using GitHub Actions.
+
+### Pipeline Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CI PIPELINE (ci.yml)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐                        │
+│  │  Lint   │  │  SAST   │  │   SCA   │  │  Test   │                        │
+│  │ flake8  │  │ CodeQL  │  │pip-audit│  │ pytest  │                        │
+│  │  black  │  │         │  │         │  │         │                        │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘                        │
+│       │            │            │            │                              │
+│       └────────────┴─────┬──────┴────────────┘                              │
+│                          │                                                  │
+│                          ▼                                                  │
+│                   ┌─────────────┐                                           │
+│                   │Docker Build │                                           │
+│                   │  + Trivy    │                                           │
+│                   └──────┬──────┘                                           │
+│                          │                                                  │
+│                          ▼                                                  │
+│                   ┌─────────────┐                                           │
+│                   │  Container  │                                           │
+│                   │ Smoke Test  │                                           │
+│                   └──────┬──────┘                                           │
+│                          │                                                  │
+│                          ▼                                                  │
+│                   ┌─────────────┐                                           │
+│                   │ Push to     │                                           │
+│                   │ DockerHub   │                                           │
+│                   └─────────────┘                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CD PIPELINE (cd.yml)                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐     │
+│  │Create kind  │──▶│   Deploy    │──▶│   Verify    │──▶│   Smoke     │     │
+│  │  Cluster    │   │   to K8s    │   │  Rollout    │   │   Tests     │     │
+│  └─────────────┘   └─────────────┘   └─────────────┘   └─────────────┘     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### CI Pipeline Stages
+
+| Stage | Tool | Purpose |
+|-------|------|---------|
+| **Linting** | flake8, black | Enforce PEP8 coding standards and consistent formatting |
+| **SAST** | CodeQL | Static Application Security Testing - detect OWASP Top 10 vulnerabilities |
+| **SCA** | pip-audit | Software Composition Analysis - identify vulnerable dependencies |
+| **Unit Tests** | pytest | Validate business logic with 47+ tests |
+| **Docker Build** | docker/build-push-action | Build production container image |
+| **Image Scan** | Trivy | Scan container for OS/library vulnerabilities |
+| **Container Test** | curl | Verify container runs and responds |
+| **Registry Push** | DockerHub | Publish trusted image after all gates pass |
+
+### CD Pipeline Stages
+
+| Stage | Tool | Purpose |
+|-------|------|---------|
+| **Create Cluster** | kind | Spin up Kubernetes test cluster in GitHub Actions |
+| **Deploy** | kubectl apply | Apply Kubernetes manifests |
+| **Verify Rollout** | kubectl rollout status | Confirm deployment success |
+| **Smoke Test** | kubectl port-forward + curl | Validate runtime behavior |
+| **Cleanup** | kind delete | Clean up test resources |
+
+### Setting Up GitHub Secrets
+
+To enable the CI/CD pipeline, configure these secrets in your GitHub repository:
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Add the following secrets:
+
+| Secret | Description | How to Get |
+|--------|-------------|------------|
+| `DOCKERHUB_USERNAME` | Your DockerHub username | Your DockerHub account |
+| `DOCKERHUB_TOKEN` | DockerHub access token | DockerHub → Account Settings → Security → New Access Token |
+
+### Running the Pipeline
+
+**Automatic Triggers:**
+- Push to `main` branch → CI pipeline runs
+- Pull request to `main` → CI pipeline runs (no Docker push)
+- CI success on `main` → CD pipeline triggers
+
+**Manual Triggers:**
+1. Go to **Actions** tab in GitHub
+2. Select the workflow (CI or CD)
+3. Click **Run workflow**
+
+### Local Development Commands
+
+```bash
+# Run linting
+flake8 app/ tests/
+black --check app/ tests/
+
+# Run tests
+pytest tests/ -v
+
+# Build Docker image locally
+docker build -t fb-messenger-backend:local .
+
+# Run container locally
+docker run -p 8000:8000 fb-messenger-backend:local
+```
+
+### Kubernetes Deployment
+
+The `k8s/` directory contains production-ready manifests:
+
+```bash
+# Apply to your cluster
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+
+# Check status
+kubectl get pods -l app=fb-messenger-backend
+kubectl get services
+```
+
+### Security Features
+
+- **Multi-stage Docker build** - Minimizes attack surface
+- **Non-root container user** - Principle of least privilege
+- **CodeQL SAST** - Detects code vulnerabilities
+- **pip-audit SCA** - Catches vulnerable dependencies
+- **Trivy scanning** - Container vulnerability detection
+- **Pod security context** - Kubernetes security hardening 

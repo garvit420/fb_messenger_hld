@@ -1,0 +1,247 @@
+# =============================================================================
+# CD Pipeline - Continuous Deployment for FB Messenger Backend
+# =============================================================================
+# This pipeline handles deployment to Kubernetes:
+# 1. Creates a test Kubernetes cluster using kind (Kubernetes in Docker)
+# 2. Deploys the application using kubectl
+# 3. Verifies deployment success
+# 4. Runs smoke tests
+# 5. Cleans up resources
+#
+# NOTE: In production, you would deploy to a real cluster (EKS, GKE, AKS)
+# This uses kind for demonstration in GitHub Actions
+# =============================================================================
+
+name: CD Pipeline
+
+# -----------------------------------------------------------------------------
+# TRIGGERS
+# - After CI workflow completes successfully on main branch
+# - Manual trigger for ad-hoc deployments
+# -----------------------------------------------------------------------------
+on:
+  # Trigger after CI workflow completes
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types:
+      - completed
+    branches: [main]
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: false
+        default: 'latest'
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT VARIABLES
+# -----------------------------------------------------------------------------
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/fb-messenger-backend
+  CLUSTER_NAME: fb-messenger-test
+
+# -----------------------------------------------------------------------------
+# JOBS
+# -----------------------------------------------------------------------------
+jobs:
+  # ===========================================================================
+  # JOB 1: Deploy to Kubernetes
+  # ===========================================================================
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    # Only run if CI was successful (for workflow_run trigger)
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Step 1: Checkout code
+      # WHY: Need Kubernetes manifests from the repository
+      # -----------------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Step 2: Install kind (Kubernetes in Docker)
+      # WHY: Creates a local Kubernetes cluster for testing deployments
+      # This simulates a real K8s environment in GitHub Actions
+      # -----------------------------------------------------------------------
+      - name: Install kind
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      # -----------------------------------------------------------------------
+      # Step 3: Create Kubernetes cluster
+      # WHY: Provides isolated environment for deployment testing
+      # -----------------------------------------------------------------------
+      - name: Create kind cluster
+        run: |
+          kind create cluster --name ${{ env.CLUSTER_NAME }} --wait 60s
+          kubectl cluster-info --context kind-${{ env.CLUSTER_NAME }}
+
+      # -----------------------------------------------------------------------
+      # Step 4: Login to DockerHub
+      # WHY: Need to pull the image we built in CI
+      # -----------------------------------------------------------------------
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # -----------------------------------------------------------------------
+      # Step 5: Determine image tag
+      # WHY: Use provided tag or default to latest
+      # -----------------------------------------------------------------------
+      - name: Set image tag
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 6: Load image into kind cluster
+      # WHY: kind clusters can't pull from DockerHub directly in CI
+      # We need to load the image into the cluster's container runtime
+      # -----------------------------------------------------------------------
+      - name: Pull and load image into kind
+        run: |
+          docker pull ${{ env.DOCKER_IMAGE }}:${{ steps.image.outputs.tag }}
+          kind load docker-image ${{ env.DOCKER_IMAGE }}:${{ steps.image.outputs.tag }} --name ${{ env.CLUSTER_NAME }}
+
+      # -----------------------------------------------------------------------
+      # Step 7: Update deployment manifest with actual image
+      # WHY: Replace placeholder variables with actual values
+      # -----------------------------------------------------------------------
+      - name: Update Kubernetes manifests
+        run: |
+          sed -i "s|\${DOCKER_IMAGE}|${{ env.DOCKER_IMAGE }}|g" k8s/deployment.yaml
+          sed -i "s|\${IMAGE_TAG}|${{ steps.image.outputs.tag }}|g" k8s/deployment.yaml
+          echo "=== Updated deployment.yaml ==="
+          cat k8s/deployment.yaml
+
+      # -----------------------------------------------------------------------
+      # Step 8: Apply Kubernetes manifests
+      # WHY: Deploy the application to the cluster
+      # kubectl apply is declarative - it creates or updates resources
+      # -----------------------------------------------------------------------
+      - name: Deploy to Kubernetes
+        run: |
+          echo "Applying Kubernetes manifests..."
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+
+      # -----------------------------------------------------------------------
+      # Step 9: Wait for deployment rollout
+      # WHY: Ensures pods are running before proceeding with tests
+      # This is the key verification that deployment succeeded
+      # -----------------------------------------------------------------------
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          kubectl rollout status deployment/fb-messenger-backend --timeout=120s
+
+      # -----------------------------------------------------------------------
+      # Step 10: Verify deployment status
+      # WHY: Double-check that pods are running and healthy
+      # -----------------------------------------------------------------------
+      - name: Verify deployment
+        run: |
+          echo "=== Deployment Status ==="
+          kubectl get deployments
+
+          echo "=== Pod Status ==="
+          kubectl get pods -l app=fb-messenger-backend
+
+          echo "=== Service Status ==="
+          kubectl get services
+
+          echo "=== Pod Details ==="
+          kubectl describe pods -l app=fb-messenger-backend
+
+      # -----------------------------------------------------------------------
+      # Step 11: Run smoke tests
+      # WHY: Verify the application is actually working, not just running
+      # Port-forward allows accessing ClusterIP service from GitHub Actions runner
+      # -----------------------------------------------------------------------
+      - name: Run smoke tests
+        run: |
+          echo "Setting up port forwarding..."
+          kubectl port-forward service/fb-messenger-backend 8080:80 &
+          PF_PID=$!
+          sleep 10  # Wait for port-forward to establish
+
+          echo "Testing health endpoint..."
+          curl --fail --retry 5 --retry-delay 2 http://localhost:8080/health || {
+            echo "Health check failed!"
+            kubectl logs -l app=fb-messenger-backend --tail=50
+            exit 1
+          }
+          echo "Health check passed!"
+
+          echo "Testing API docs endpoint..."
+          curl --fail http://localhost:8080/docs || {
+            echo "API docs check failed!"
+            exit 1
+          }
+          echo "API docs accessible!"
+
+          # Cleanup port-forward
+          kill $PF_PID || true
+
+      # -----------------------------------------------------------------------
+      # Step 12: Deployment summary
+      # WHY: Provide clear output of what was deployed
+      # -----------------------------------------------------------------------
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "============================================"
+          echo "DEPLOYMENT SUCCESSFUL!"
+          echo "============================================"
+          echo "Image: ${{ env.DOCKER_IMAGE }}:${{ steps.image.outputs.tag }}"
+          echo "Cluster: ${{ env.CLUSTER_NAME }}"
+          echo ""
+          echo "Deployment verified with:"
+          echo "  - Health check: PASSED"
+          echo "  - API docs: ACCESSIBLE"
+          echo "============================================"
+
+      # -----------------------------------------------------------------------
+      # Step 13: Cleanup (always runs)
+      # WHY: Clean up resources to avoid leaving orphaned clusters
+      # -----------------------------------------------------------------------
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up kind cluster..."
+          kind delete cluster --name ${{ env.CLUSTER_NAME }} || true
+
+  # ===========================================================================
+  # JOB 2: Notify on failure (optional enhancement)
+  # ===========================================================================
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: failure()
+
+    steps:
+      - name: Log failure
+        run: |
+          echo "============================================"
+          echo "DEPLOYMENT FAILED!"
+          echo "============================================"
+          echo "Check the deploy job logs for details."
+          echo "Common issues:"
+          echo "  - Image pull failures (check DockerHub credentials)"
+          echo "  - Pod crash loops (check application logs)"
+          echo "  - Resource constraints (check resource limits)"
+          echo "============================================"

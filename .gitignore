@@ -41,4 +41,28 @@ logs/
 .env.local
 
 # Docker volumes
-data/ 
+data/
+
+# CI/CD
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+junit.xml
+test-results/
+
+# Security scanning
+.trivy/
+trivy-results.sarif
+
+# Build artifacts
+*.tar
+*.tar.gz
+
+# Kubernetes local
+*.kubeconfig
+kubeconfig
+
+# Editor backup files
+*~
+*.bak 
