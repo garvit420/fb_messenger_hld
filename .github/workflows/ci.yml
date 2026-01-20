@@ -213,6 +213,9 @@ jobs:
     runs-on: ubuntu-latest
     # IMPORTANT: Only run after all quality gates pass
     needs: [lint, sast, sca, test]
+    permissions:
+      contents: read
+      security-events: write  # Required to upload Trivy SARIF results
 
     steps:
       - name: Checkout code
