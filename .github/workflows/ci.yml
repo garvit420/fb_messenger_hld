@@ -263,7 +263,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          image-ref: ${{ env.DOCKER_IMAGE }}:latest
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -302,8 +302,8 @@ jobs:
       # Pull and run the built image
       - name: Run container
         run: |
-          docker pull ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
-          docker run -d --name test-container -p 8000:8000 ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          docker pull ${{ env.DOCKER_IMAGE }}:latest
+          docker run -d --name test-container -p 8000:8000 ${{ env.DOCKER_IMAGE }}:latest
           sleep 10  # Wait for container to start
 
       # Test the health endpoint
