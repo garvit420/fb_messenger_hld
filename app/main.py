@@ -1,13 +1,14 @@
+"""FastAPI application entry point with SQLite backend."""
 import logging
-from fastapi import FastAPI, Depends
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import sys
-import os
 
-from app.api.routes import message_router, conversation_router
-from app.controllers.message_controller import MessageController
-from app.controllers.conversation_controller import ConversationController
-from app.db.cassandra_client import cassandra_client
+from app.api.routes.message_routes import router as message_router
+from app.api.routes.conversation_routes import router as conversation_router
+from app.api.routes.auth_routes import router as auth_router
+from app.api.routes.user_routes import router as user_router
+from app.db.sqlite_client import init_db, close_db
 
 # Configure logging
 logging.basicConfig(
@@ -16,10 +17,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+    # Startup
+    logger.info("Initializing application...")
+    init_db()
+    logger.info("SQLite database initialized")
+    yield
+    # Shutdown
+    logger.info("Shutting down application...")
+    close_db()
+
+
 app = FastAPI(
     title="FB Messenger API",
-    description="Backend API for FB Messenger implementation using Cassandra",
-    version="1.0.0"
+    description="Backend API for FB Messenger implementation with SQLite and JWT authentication",
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -31,45 +47,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependency injection
-def get_message_controller():
-    """Dependency for message controller."""
-    return MessageController()
-
-def get_conversation_controller():
-    """Dependency for conversation controller."""
-    return ConversationController()
-
 # Include routers
+app.include_router(auth_router)
+app.include_router(user_router)
 app.include_router(message_router)
 app.include_router(conversation_router)
 
-# Update the routes with the dependencies
-app.dependency_overrides[MessageController] = get_message_controller
-app.dependency_overrides[ConversationController] = get_conversation_controller
 
 @app.get("/")
 async def root():
-    return {"message": "FB Messenger API is running with Cassandra backend"}
+    """Root endpoint returning API status."""
+    return {"message": "FB Messenger API is running with SQLite backend"}
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize services on startup."""
-    logger.info("Initializing application...")
-    try:
-        # Ensure Cassandra connection is established
-        cassandra_client.get_session()
-        logger.info("Cassandra connection established")
-    except Exception as e:
-        logger.error(f"Failed to connect to Cassandra: {str(e)}")
-        sys.exit(1)
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources on shutdown."""
-    logger.info("Shutting down application...")
-    cassandra_client.close()
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) 
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
